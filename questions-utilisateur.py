@@ -2,18 +2,18 @@ def choisir_objectif():
     """Demande l'objectif avec une boucle de validation."""
     while True:
         print("\n🎯 Quel est ton objectif ?")
-        print("  1. Perdre du poids")
-        print("  2. Prendre du muscle")
-        print("  3. Rester en forme")
+        print("  1. Seche")
+        print("  2. Prise de masse")
+        print("  3. Maintien")
 
         choix = input("\nTon choix (1, 2 ou 3) : ").strip()
 
         if choix == "1":
-            return "perdre du poids"
+            return "Seche"
         elif choix == "2":
-            return "prendre du muscle"
+            return "Prise de masse"
         elif choix == "3":
-            return "rester en forme"
+            return "Maintien"
         else:
             print("⚠️ Erreur : Peux-tu choisir entre 1, 2 ou 3 ?")
 

@@ -1,0 +1,57 @@
+============================================================
+  COACH SPORT & NUTRITION — Explication du projet
+  BTS SIO SLAM — Groupe : Nicolas, Jordy, Ivann, Cheikh
+============================================================
+
+PRÉSENTATION DU PROJET
+-----------------------
+Coach Sport & Nutrition est un programme Python qui génère un programme
+personnalisé selon l'objectif et le niveau sportif de l'utilisateur.
+Le programme affiche une séance de sport, un repas conseillé et un conseil
+nutrition adaptés au profil de l'utilisateur.
+
+ORGANISATION DU TRAVAIL
+------------------------
+Le projet a été développé en groupe de 4, avec une branche Git par membre :
+
+  - Nicolas  : Module séances de sport (seances_sport.py)
+               3 objectifs x 3 niveaux x 3 séances = 27 séances au total
+               Durées : 45 min (débutant), 1h (intermédiaire), 1h30 (confirmé)
+
+  - Jordy    : Module questions utilisateur (questions_utilisateur.py)
+               Saisie et validation des choix objectif et niveau
+
+  - Ivann    : Module affichage (affichage_resultats.py)
+               Mise en forme des résultats dans le terminal avec couleurs
+
+  - Cheikh   : Module repas et nutrition (repas_nutrition.py)
+               5 repas par objectif avec calories et apport en protéines
+
+FONCTIONNALITÉS TECHNIQUES
+---------------------------
+  - Langage         : Python 3
+  - Interface       : Tkinter (application bureau)
+  - Base de données : SQLite (fichier local coach_sport.db)
+  - Gestion de code : Git / GitHub (organisation wedoee-collab)
+
+FONCTIONNALITÉS DE L'APPLICATION (v2)
+--------------------------------------
+  - Profil utilisateur : saisie prénom, âge, poids, taille
+  - Calcul IMC automatique avec recommandation d'objectif
+  - Génération d'un programme personnalisé (séance + repas + conseil)
+  - Notation des programmes de 1 à 5 étoiles
+  - Historique des programmes en base de données SQLite
+  - Export de l'historique en fichier CSV
+  - Graphique de suivi des calories sur les 20 derniers programmes
+
+NOTIONS PYTHON UTILISÉES
+-------------------------
+  - Fonctions, if/elif/else, boucles while
+  - Dictionnaires et listes
+  - Module random (choix aléatoire)
+  - Module sqlite3 (base de données)
+  - Module tkinter (interface graphique)
+  - Module csv (export)
+  - Programmation orientée objet (classe CoachApp)
+
+============================================================

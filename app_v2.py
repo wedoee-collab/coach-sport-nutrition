@@ -90,8 +90,10 @@ def sauvegarder_programme(objectif, niveau, seance, duree, repas, calories, prot
         INSERT INTO historique (date, objectif, niveau, seance, duree, repas, calories, proteines, conseil, statut)
         VALUES (?,?,?,?,?,?,?,?,?,?)
     """, (datetime.now().strftime(DATE_FORMAT), objectif, niveau, seance, duree, repas, calories, proteines, conseil, STATUT_A_FAIRE))
+    programme_id = c.lastrowid
     conn.commit()
     conn.close()
+    return programme_id
 
 def mettre_a_jour_note(item_id, note):
     conn = get_conn()
@@ -104,6 +106,17 @@ def mettre_a_jour_statut(item_id, statut):
     conn = get_conn()
     c = conn.cursor()
     c.execute("UPDATE historique SET statut=? WHERE id=?", (statut, item_id))
+    conn.commit()
+    conn.close()
+
+def mettre_a_jour_repas_programme(item_id, repas, calories, proteines):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("""
+        UPDATE historique
+        SET repas=?, calories=?, proteines=?
+        WHERE id=?
+    """, (repas, calories, proteines, item_id))
     conn.commit()
     conn.close()
 
@@ -255,6 +268,8 @@ class CoachApp(tk.Tk):
         self.objectif_var = tk.StringVar(value="")
         self.niveau_var   = tk.StringVar(value="")
         self.selected_id  = None
+        self.current_program_id = None
+        self.current_program = None
         init_db()
         self._build_ui()
         self._charger_historique()
@@ -419,11 +434,33 @@ class CoachApp(tk.Tk):
         calories = calories_pour_app(r)
         proteines = proteines_pour_app(r)
 
-        sauvegarder_programme(
+        programme_id = sauvegarder_programme(
             LABELS_OBJ[objectif], LABELS_NIV[niveau],
             s["seance"], s["duree"],
             r["nom"], calories, proteines, c
         )
+        self.current_program_id = programme_id
+        self.current_program = {
+            "objectif": objectif,
+            "niveau": niveau,
+            "seance": s,
+            "repas": r,
+            "conseil": c,
+        }
+
+        self._afficher_programme_courant()
+        self._charger_historique()
+        self._charger_suivi()
+
+    def _afficher_programme_courant(self):
+        if not self.current_program:
+            return
+
+        s = self.current_program["seance"]
+        r = self.current_program["repas"]
+        c = self.current_program["conseil"]
+        calories = calories_pour_app(r)
+        proteines = proteines_pour_app(r)
 
         for w in self.result_frame.winfo_children():
             w.destroy()
@@ -440,6 +477,12 @@ class CoachApp(tk.Tk):
         bloc("🍽  REPAS CONSEILLÉ", [r["nom"], f"{calories} kcal  •  {proteines} protéines"], ORANGE)
         bloc("💡  CONSEIL NUTRITION", [c], BLEU)
 
+        actions_f = tk.Frame(self.result_frame, bg=BG)
+        actions_f.pack(fill="x", pady=(6, 0))
+        tk.Button(actions_f, text="🔁  Changer le repas", font=(FONT, 10, "bold"),
+                  fg=BG, bg=ORANGE, relief="flat", cursor="hand2", pady=6,
+                  command=self._changer_repas).pack(side="left")
+
         # Note
         note_f = tk.Frame(self.result_frame, bg=BG)
         note_f.pack(fill="x", pady=6)
@@ -449,17 +492,35 @@ class CoachApp(tk.Tk):
                       relief="flat", cursor="hand2",
                       command=lambda n=i: self._noter(n)).pack(side="left", padx=2)
 
+    def _changer_repas(self):
+        if not self.current_program or self.current_program_id is None:
+            messagebox.showwarning("Aucun programme", "Génère d'abord un programme.")
+            return
+
+        objectif = self.current_program["objectif"]
+        repas_actuel = self.current_program["repas"]
+        repas_disponibles = REPAS[objectif]
+        autres_repas = [repas for repas in repas_disponibles if repas["nom"] != repas_actuel["nom"]]
+
+        if not autres_repas:
+            messagebox.showinfo("Repas inchangé", "Aucun autre repas n'est disponible pour cet objectif.")
+            return
+
+        nouveau_repas = random.choice(autres_repas)
+        calories = calories_pour_app(nouveau_repas)
+        proteines = proteines_pour_app(nouveau_repas)
+
+        self.current_program["repas"] = nouveau_repas
+        mettre_a_jour_repas_programme(self.current_program_id, nouveau_repas["nom"], calories, proteines)
+
+        self._afficher_programme_courant()
         self._charger_historique()
         self._charger_suivi()
+        messagebox.showinfo("Repas mis à jour", "Un nouveau repas a été proposé pour ce programme.")
 
     def _noter(self, note):
-        conn = get_conn()
-        c = conn.cursor()
-        c.execute("SELECT id FROM historique ORDER BY id DESC LIMIT 1")
-        row = c.fetchone()
-        conn.close()
-        if row:
-            mettre_a_jour_note(row[0], note)
+        if self.current_program_id is not None:
+            mettre_a_jour_note(self.current_program_id, note)
             self._charger_historique()
             messagebox.showinfo("Note enregistrée", f"Programme noté {note}/5 ★")
 

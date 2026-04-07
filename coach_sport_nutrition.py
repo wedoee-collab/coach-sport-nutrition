@@ -155,4 +155,6 @@ def main():
 
 # Lancement du programme
 if __name__ == "__main__":
-    main()
+    from affichage_resultats import main as lancer_programme
+
+    lancer_programme()

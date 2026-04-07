@@ -1,9 +1,3 @@
-# ============================================================
-#  Module : Affichage des résultats
-#  Auteur : Ivann
-#  Branche : feat/affichage-resultats
-# ============================================================
-
 from __future__ import annotations
 
 import random
@@ -11,47 +5,44 @@ import shutil
 import sys
 import textwrap
 
-import coach_sport_nutrition as coach
+import repas_nutrition as nutrition
+import seances_sport as sport
 
-
-# ---------- DONNÉES HARMONISÉES ----------
 
 OBJECTIFS = [
     ("Prise de masse", "prise de masse"),
-    ("Sèche", "seche"),
+    ("Seche", "seche"),
     ("Maintien", "maintien"),
 ]
 
 NIVEAUX = [
-    ("Débutant", "debutant"),
-    ("Intermédiaire", "intermediaire"),
-    ("Confirmé", "confirme"),
+    ("Debutant", "debutant"),
+    ("Intermediaire", "intermediaire"),
+    ("Confirme", "confirme"),
 ]
 
 FOCUS_OBJECTIF = {
-    "prise de masse": "Focus force et récupération",
-    "seche":          "Focus cardio et dépense calorique",
-    "maintien":       "Focus équilibre et endurance",
+    "prise de masse": "Focus force et recuperation",
+    "seche": "Focus cardio et depense calorique",
+    "maintien": "Focus equilibre et endurance",
 }
 
 INTENSITE_NIVEAU = {
-    "debutant":      35,
+    "debutant": 35,
     "intermediaire": 65,
-    "confirme":      90,
+    "confirme": 90,
 }
 
 COULEURS = {
-    "cyan":    "\033[96m",
-    "vert":    "\033[92m",
-    "jaune":   "\033[93m",
-    "bleu":    "\033[94m",
+    "cyan": "\033[96m",
+    "vert": "\033[92m",
+    "jaune": "\033[93m",
+    "bleu": "\033[94m",
     "magenta": "\033[95m",
-    "gras":    "\033[1m",
-    "reset":   "\033[0m",
+    "gras": "\033[1m",
+    "reset": "\033[0m",
 }
 
-
-# ---------- FONCTIONS UTILITAIRES ----------
 
 def couleurs_actives() -> bool:
     return sys.stdout.isatty()
@@ -84,7 +75,7 @@ def construire_bloc(titre: str, lignes: list[str], couleur: str = "cyan") -> str
     largeur = largeur_interface() - 4
     contenu = envelopper_lignes(lignes, largeur)
 
-    bordure     = colorer("+" + "-" * (largeur + 2) + "+", couleur)
+    bordure = colorer("+" + "-" * (largeur + 2) + "+", couleur)
     titre_ligne = f"| {titre.center(largeur)} |"
 
     rendu = [bordure, colorer(titre_ligne, couleur), bordure]
@@ -107,14 +98,12 @@ def trouver_label(cle: str, options: list[tuple[str, str]]) -> str:
     return cle
 
 
-# ---------- FONCTIONS D'AFFICHAGE ----------
-
 def afficher_entete() -> None:
     largeur = largeur_interface()
     print()
     print(colorer("=" * largeur, "magenta"))
     print(colorer(centrer("COACH SPORT & NUTRITION", largeur), "gras"))
-    print(colorer(centrer("Ton programme personnalisé", largeur), "bleu"))
+    print(colorer(centrer("Projet complet integre", largeur), "bleu"))
     print(colorer("=" * largeur, "magenta"))
 
 
@@ -137,32 +126,33 @@ def choisir_option(
             index = int(choix) - 1
             if 0 <= index < len(options):
                 return options[index][1]
-        print(colorer("Choix invalide. Merci de saisir un numéro proposé.", "jaune"))
+        print(colorer("Choix invalide. Merci de saisir un numero propose.", "jaune"))
 
 
 def generer_programme(objectif: str, niveau: str) -> dict[str, str]:
-    # Utilise la structure SEANCES[objectif][niveau] du module séances
-    seance  = random.choice(coach.SEANCES[objectif][niveau])
-    repas   = random.choice(coach.REPAS[objectif])
-    conseil = random.choice(coach.CONSEILS)
+    seance = random.choice(sport.SEANCES[objectif][niveau])
+    repas = nutrition.choisir_repas(objectif)
+    conseil = nutrition.choisir_conseil_nutrition(objectif)
+
     return {
-        "duree":   seance["duree"],
-        "seance":  seance["seance"],
-        "repas":   repas,
+        "duree": seance["duree"],
+        "seance": seance["seance"],
+        "repas_nom": repas["nom"],
+        "repas_apport": f"{repas['calories']} | {repas['proteines']}",
         "conseil": conseil,
     }
 
 
 def afficher_resume(objectif: str, niveau: str) -> None:
     objectif_label = trouver_label(objectif, OBJECTIFS)
-    niveau_label   = trouver_label(niveau, NIVEAUX)
-    intensite      = INTENSITE_NIVEAU[niveau]
+    niveau_label = trouver_label(niveau, NIVEAUX)
+    intensite = INTENSITE_NIVEAU[niveau]
 
     lignes = [
-        f"Objectif sélectionné : {objectif_label}",
-        f"Niveau choisi        : {niveau_label}",
-        f"Style du programme   : {FOCUS_OBJECTIF[objectif]}",
-        f"Intensité du jour    : {barre_progression(intensite)}",
+        f"Objectif selectionne : {objectif_label}",
+        f"Niveau choisi       : {niveau_label}",
+        f"Style du programme  : {FOCUS_OBJECTIF[objectif]}",
+        f"Intensite du jour   : {barre_progression(intensite)}",
     ]
 
     print()
@@ -171,37 +161,51 @@ def afficher_resume(objectif: str, niveau: str) -> None:
 
 def afficher_resultats(objectif: str, niveau: str, programme: dict[str, str]) -> None:
     objectif_label = trouver_label(objectif, OBJECTIFS)
-    niveau_label   = trouver_label(niveau, NIVEAUX)
+    niveau_label = trouver_label(niveau, NIVEAUX)
 
     print()
-    print(construire_bloc(
-        "PROGRAMME PERSONNALISÉ",
-        [f"Profil : {objectif_label} | {niveau_label}",
-         "Voici ta proposition pour cette session."],
-        "vert",
-    ))
+    print(
+        construire_bloc(
+            "PROGRAMME PERSONNALISE",
+            [
+                f"Profil : {objectif_label} | {niveau_label}",
+                "Voici ta proposition pour cette session.",
+            ],
+            "vert",
+        )
+    )
 
     print()
-    print(construire_bloc(
-        "SÉANCE DE SPORT",
-        [f"Durée : {programme['duree']}", programme["seance"]],
-        "cyan",
-    ))
+    print(
+        construire_bloc(
+            "SEANCE DE SPORT",
+            [f"Duree : {programme['duree']}", programme["seance"]],
+            "cyan",
+        )
+    )
 
     print()
-    print(construire_bloc("REPAS CONSEILLÉ",  [programme["repas"]],   "magenta"))
+    print(
+        construire_bloc(
+            "REPAS CONSEILLE",
+            [programme["repas_nom"], f"Apport : {programme['repas_apport']}"],
+            "magenta",
+        )
+    )
 
     print()
-    print(construire_bloc("CONSEIL SANTÉ",    [programme["conseil"]], "jaune"))
+    print(construire_bloc("CONSEIL NUTRITION", [programme["conseil"]], "jaune"))
 
 
 def demander_rejouer() -> bool:
     print()
-    print(construire_bloc(
-        "CONTINUER ?",
-        ["1. Oui, générer un nouveau programme", "2. Non, quitter"],
-        "bleu",
-    ))
+    print(
+        construire_bloc(
+            "CONTINUER ?",
+            ["1. Oui, generer un nouveau programme", "2. Non, quitter"],
+            "bleu",
+        )
+    )
 
     while True:
         reponse = input("\nTon choix : ").strip()
@@ -214,15 +218,17 @@ def demander_rejouer() -> bool:
 
 def afficher_pied_page() -> None:
     print()
-    print(construire_bloc(
-        "À BIENTÔT",
-        ["Merci d'avoir utilisé le Coach Sport & Nutrition.",
-         "Reviens quand tu veux pour un nouveau programme !"],
-        "magenta",
-    ))
+    print(
+        construire_bloc(
+            "A BIENTOT",
+            [
+                "Merci d'avoir utilise le Coach Sport & Nutrition.",
+                "Reviens quand tu veux pour un nouveau programme.",
+            ],
+            "magenta",
+        )
+    )
 
-
-# ---------- PROGRAMME PRINCIPAL ----------
 
 def main() -> None:
     afficher_entete()

@@ -17,6 +17,9 @@ import seances_sport as sport
 # ==================== BASE DE DONNÉES ====================
 
 DB_PATH = "coach_sport.db"
+DATE_FORMAT = "%d/%m/%Y %H:%M"
+STATUT_A_FAIRE = "À faire"
+STATUT_FAIT = "Fait"
 
 def get_conn():
     return sqlite3.connect(DB_PATH)
@@ -52,6 +55,14 @@ def init_db():
         )
     """)
 
+    c.execute("PRAGMA table_info(historique)")
+    colonnes_historique = {row[1] for row in c.fetchall()}
+    if "statut" not in colonnes_historique:
+        c.execute(f"""
+            ALTER TABLE historique
+            ADD COLUMN statut TEXT NOT NULL DEFAULT '{STATUT_A_FAIRE}'
+        """)
+
     conn.commit()
     conn.close()
 
@@ -76,9 +87,9 @@ def sauvegarder_programme(objectif, niveau, seance, duree, repas, calories, prot
     conn = get_conn()
     c = conn.cursor()
     c.execute("""
-        INSERT INTO historique (date, objectif, niveau, seance, duree, repas, calories, proteines, conseil)
-        VALUES (?,?,?,?,?,?,?,?,?)
-    """, (datetime.now().strftime("%d/%m/%Y %H:%M"), objectif, niveau, seance, duree, repas, calories, proteines, conseil))
+        INSERT INTO historique (date, objectif, niveau, seance, duree, repas, calories, proteines, conseil, statut)
+        VALUES (?,?,?,?,?,?,?,?,?,?)
+    """, (datetime.now().strftime(DATE_FORMAT), objectif, niveau, seance, duree, repas, calories, proteines, conseil, STATUT_A_FAIRE))
     conn.commit()
     conn.close()
 
@@ -89,10 +100,29 @@ def mettre_a_jour_note(item_id, note):
     conn.commit()
     conn.close()
 
+def mettre_a_jour_statut(item_id, statut):
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("UPDATE historique SET statut=? WHERE id=?", (statut, item_id))
+    conn.commit()
+    conn.close()
+
 def charger_historique():
     conn = get_conn()
     c = conn.cursor()
-    c.execute("SELECT id, date, objectif, niveau, duree, calories, note FROM historique ORDER BY id DESC")
+    c.execute("""
+        SELECT id, date, objectif, niveau, duree, calories, note, statut
+        FROM historique
+        ORDER BY id DESC
+    """)
+    rows = c.fetchall()
+    conn.close()
+    return rows
+
+def charger_statuts_historique():
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT date, statut FROM historique ORDER BY id DESC")
     rows = c.fetchall()
     conn.close()
     return rows
@@ -112,16 +142,42 @@ def supprimer_historique():
     conn.commit()
     conn.close()
 
+def compter_programmes_faits_semaine():
+    semaine_courante = datetime.now().isocalendar()[:2]
+    total = 0
+    for date_str, statut in charger_statuts_historique():
+        if statut != STATUT_FAIT:
+            continue
+        try:
+            date_programme = datetime.strptime(date_str, DATE_FORMAT)
+        except ValueError:
+            continue
+        if date_programme.isocalendar()[:2] == semaine_courante:
+            total += 1
+    return total
+
+def compter_programmes_a_faire():
+    conn = get_conn()
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM historique WHERE statut=?", (STATUT_A_FAIRE,))
+    total = c.fetchone()[0]
+    conn.close()
+    return total
+
 def exporter_csv():
     conn = get_conn()
     c = conn.cursor()
-    c.execute("SELECT date, objectif, niveau, duree, repas, calories, proteines, conseil, note FROM historique ORDER BY id DESC")
+    c.execute("""
+        SELECT date, objectif, niveau, duree, repas, calories, proteines, conseil, note, statut
+        FROM historique
+        ORDER BY id DESC
+    """)
     rows = c.fetchall()
     conn.close()
     path = "historique_coach.csv"
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["Date", "Objectif", "Niveau", "Durée", "Repas", "Calories", "Protéines", "Conseil", "Note"])
+        writer.writerow(["Date", "Objectif", "Niveau", "Durée", "Repas", "Calories", "Protéines", "Conseil", "Note", "Statut"])
         writer.writerows(rows)
     return os.path.abspath(path)
 
@@ -398,8 +454,9 @@ class CoachApp(tk.Tk):
         tk.Label(t, text="HISTORIQUE DES PROGRAMMES", font=(FONT, 10, "bold"),
                  fg=VERT, bg=BG).pack(anchor="w", padx=30, pady=(18, 10))
 
-        cols = ("Date", "Objectif", "Niveau", "Durée", "Calories", "Note")
+        cols = ("Date", "Objectif", "Niveau", "Durée", "Calories", "Note", "Statut")
         self.tree = ttk.Treeview(t, columns=cols, show="headings", height=14)
+        self.tree.bind("<<TreeviewSelect>>", self._on_historique_select)
 
         style = ttk.Style()
         style.configure("Treeview", background=BG2, foreground=TEXTE,
@@ -408,7 +465,7 @@ class CoachApp(tk.Tk):
                         font=(FONT, 9, "bold"))
         style.map("Treeview", background=[("selected", BG3)])
 
-        largeurs = [130, 130, 110, 70, 90, 60]
+        largeurs = [130, 130, 110, 70, 90, 60, 90]
         for col, larg in zip(cols, largeurs):
             self.tree.heading(col, text=col)
             self.tree.column(col, width=larg, anchor="w")
@@ -423,18 +480,66 @@ class CoachApp(tk.Tk):
         tk.Button(btn_f, text="📤  Exporter CSV", font=(FONT, 10), fg=BG, bg=BLEU,
                   relief="flat", cursor="hand2", pady=6,
                   command=self._exporter).pack(side="left", padx=(0, 10))
+        self.btn_statut = tk.Button(btn_f, text="✅  Marquer comme fait", font=(FONT, 10),
+                                    fg=BG, bg=VERT, relief="flat", cursor="hand2", pady=6,
+                                    state="disabled", command=self._marquer_comme_fait)
+        self.btn_statut.pack(side="left", padx=(0, 10))
         tk.Button(btn_f, text="🗑  Effacer l'historique", font=(FONT, 10), fg=TEXTE, bg=BG2,
                   relief="flat", cursor="hand2", pady=6,
                   command=self._effacer).pack(side="left")
 
+        self.lbl_historique_stats = tk.Label(t, text="", font=(FONT, 9), fg=GRIS, bg=BG, justify="left")
+        self.lbl_historique_stats.pack(anchor="w", padx=30, pady=(0, 10))
+
     def _charger_historique(self):
+        self.selected_id = None
         for row in self.tree.get_children():
             self.tree.delete(row)
         for row in charger_historique():
-            id_, date, obj, niv, duree, cal, note = row
+            id_, date, obj, niv, duree, cal, note, statut = row
             etoiles = "★" * note if note else "-"
             self.tree.insert("", "end", iid=str(id_),
-                             values=(date, obj, niv, duree, f"{cal} kcal", etoiles))
+                             values=(date, obj, niv, duree, f"{cal} kcal", etoiles, statut))
+        self._mettre_a_jour_resume_historique()
+        self._mettre_a_jour_bouton_statut()
+
+    def _on_historique_select(self, _event=None):
+        selection = self.tree.selection()
+        self.selected_id = selection[0] if selection else None
+        self._mettre_a_jour_bouton_statut()
+
+    def _mettre_a_jour_bouton_statut(self):
+        if not getattr(self, "btn_statut", None):
+            return
+        if not self.selected_id:
+            self.btn_statut.config(state="disabled", text="✅  Marquer comme fait")
+            return
+        valeurs = self.tree.item(self.selected_id, "values")
+        statut = valeurs[-1] if valeurs else STATUT_A_FAIRE
+        if statut == STATUT_FAIT:
+            self.btn_statut.config(state="disabled", text="✅  Déjà fait")
+        else:
+            self.btn_statut.config(state="normal", text="✅  Marquer comme fait")
+
+    def _mettre_a_jour_resume_historique(self):
+        faits_semaine = compter_programmes_faits_semaine()
+        a_faire = compter_programmes_a_faire()
+        self.lbl_historique_stats.config(
+            text=f"  Programmes faits cette semaine : {faits_semaine}  •  Encore à faire : {a_faire}"
+        )
+
+    def _marquer_comme_fait(self):
+        if not self.selected_id:
+            messagebox.showwarning("Aucune sélection", "Choisis un programme dans l'historique.")
+            return
+        valeurs = self.tree.item(self.selected_id, "values")
+        if valeurs and valeurs[-1] == STATUT_FAIT:
+            messagebox.showinfo("Déjà fait", "Ce programme est déjà marqué comme fait.")
+            return
+        mettre_a_jour_statut(int(self.selected_id), STATUT_FAIT)
+        self._charger_historique()
+        self._charger_suivi()
+        messagebox.showinfo("Statut mis à jour", "Le programme sélectionné est maintenant marqué comme fait.")
 
     def _exporter(self):
         path = exporter_csv()
@@ -464,8 +569,13 @@ class CoachApp(tk.Tk):
         rows = charger_calories_suivi()
         c = self.canvas_suivi
         c.delete("all")
+        faits_semaine = compter_programmes_faits_semaine()
+        a_faire = compter_programmes_a_faire()
 
         if not rows:
+            self.lbl_stats.config(
+                text=f"  Programmes faits cette semaine : {faits_semaine}  •  Encore à faire : {a_faire}"
+            )
             c.create_text(390, 160, text="Aucune donnée disponible.",
                           font=(FONT, 11), fill=GRIS)
             return
@@ -535,7 +645,11 @@ class CoachApp(tk.Tk):
         total   = len(valeurs)
         moyenne = sum(v[2] for v in valeurs) // total
         self.lbl_stats.config(
-            text=f"  {total} programmes générés  •  Moyenne : {moyenne} kcal/repas  •  Min : {min_cal} kcal  •  Max : {max_cal} kcal"
+            text=(
+                f"  {total} programmes générés  •  Faits cette semaine : {faits_semaine}"
+                f"  •  À faire : {a_faire}  •  Moyenne : {moyenne} kcal/repas"
+                f"  •  Min : {min_cal} kcal  •  Max : {max_cal} kcal"
+            )
         )
 
     def run(self):

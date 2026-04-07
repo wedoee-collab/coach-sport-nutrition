@@ -114,3 +114,16 @@ def choisir_repas(objectif: str) -> dict[str, str]:
 
 def choisir_conseil_nutrition(objectif: str) -> str:
     return random.choice(CONSEILS_NUTRITION[objectif])
+
+
+def afficher_repas(objectif: str) -> None:
+    repas = choisir_repas(objectif)
+    print("\n--- REPAS CONSEILLE ---")
+    print(f"  {repas['nom']}")
+    print(f"  Apport : {repas['calories']} | {repas['proteines']}")
+
+
+def afficher_conseil_nutrition(objectif: str) -> None:
+    conseil = choisir_conseil_nutrition(objectif)
+    print("\n--- CONSEIL NUTRITION ---")
+    print(f"  {conseil}")

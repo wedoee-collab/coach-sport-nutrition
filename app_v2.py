@@ -107,14 +107,31 @@ def mettre_a_jour_statut(item_id, statut):
     conn.commit()
     conn.close()
 
-def charger_historique():
+def charger_historique(objectif="Tous", niveau="Tous", statut="Tous"):
     conn = get_conn()
     c = conn.cursor()
-    c.execute("""
+    requete = """
         SELECT id, date, objectif, niveau, duree, calories, note, statut
         FROM historique
-        ORDER BY id DESC
-    """)
+    """
+    conditions = []
+    params = []
+
+    if objectif != "Tous":
+        conditions.append("objectif = ?")
+        params.append(objectif)
+    if niveau != "Tous":
+        conditions.append("niveau = ?")
+        params.append(niveau)
+    if statut != "Tous":
+        conditions.append("statut = ?")
+        params.append(statut)
+
+    if conditions:
+        requete += " WHERE " + " AND ".join(conditions)
+
+    requete += " ORDER BY id DESC"
+    c.execute(requete, params)
     rows = c.fetchall()
     conn.close()
     return rows
@@ -454,6 +471,32 @@ class CoachApp(tk.Tk):
         tk.Label(t, text="HISTORIQUE DES PROGRAMMES", font=(FONT, 10, "bold"),
                  fg=VERT, bg=BG).pack(anchor="w", padx=30, pady=(18, 10))
 
+        filtres_f = tk.Frame(t, bg=BG)
+        filtres_f.pack(fill="x", padx=30, pady=(0, 10))
+
+        self.filtre_objectif_var = tk.StringVar(value="Tous")
+        self.filtre_niveau_var = tk.StringVar(value="Tous")
+        self.filtre_statut_var = tk.StringVar(value="Tous")
+
+        filtres = [
+            ("Objectif", self.filtre_objectif_var, ["Tous", "Prise de masse", "Sèche", "Maintien"]),
+            ("Niveau", self.filtre_niveau_var, ["Tous", "Débutant", "Intermédiaire", "Confirmé"]),
+            ("Statut", self.filtre_statut_var, ["Tous", STATUT_A_FAIRE, STATUT_FAIT]),
+        ]
+
+        for label, variable, valeurs in filtres:
+            bloc = tk.Frame(filtres_f, bg=BG)
+            bloc.pack(side="left", padx=(0, 18))
+            tk.Label(bloc, text=label, font=(FONT, 9, "bold"), fg=GRIS, bg=BG).pack(anchor="w")
+            combo = ttk.Combobox(bloc, textvariable=variable, values=valeurs, state="readonly",
+                                 font=(FONT, 9), width=16)
+            combo.pack(anchor="w", pady=(4, 0))
+            combo.bind("<<ComboboxSelected>>", self._on_filtre_change)
+
+        tk.Button(filtres_f, text="Réinitialiser filtres", font=(FONT, 9), fg=TEXTE, bg=BG2,
+                  relief="flat", cursor="hand2", padx=10, pady=5,
+                  command=self._reinitialiser_filtres).pack(side="left", padx=(6, 0), pady=(18, 0))
+
         cols = ("Date", "Objectif", "Niveau", "Durée", "Calories", "Note", "Statut")
         self.tree = ttk.Treeview(t, columns=cols, show="headings", height=14)
         self.tree.bind("<<TreeviewSelect>>", self._on_historique_select)
@@ -495,13 +538,27 @@ class CoachApp(tk.Tk):
         self.selected_id = None
         for row in self.tree.get_children():
             self.tree.delete(row)
-        for row in charger_historique():
+        rows = charger_historique(
+            objectif=self.filtre_objectif_var.get(),
+            niveau=self.filtre_niveau_var.get(),
+            statut=self.filtre_statut_var.get(),
+        )
+        for row in rows:
             id_, date, obj, niv, duree, cal, note, statut = row
             etoiles = "★" * note if note else "-"
             self.tree.insert("", "end", iid=str(id_),
                              values=(date, obj, niv, duree, f"{cal} kcal", etoiles, statut))
-        self._mettre_a_jour_resume_historique()
+        self._mettre_a_jour_resume_historique(len(rows))
         self._mettre_a_jour_bouton_statut()
+
+    def _on_filtre_change(self, _event=None):
+        self._charger_historique()
+
+    def _reinitialiser_filtres(self):
+        self.filtre_objectif_var.set("Tous")
+        self.filtre_niveau_var.set("Tous")
+        self.filtre_statut_var.set("Tous")
+        self._charger_historique()
 
     def _on_historique_select(self, _event=None):
         selection = self.tree.selection()
@@ -521,11 +578,14 @@ class CoachApp(tk.Tk):
         else:
             self.btn_statut.config(state="normal", text="✅  Marquer comme fait")
 
-    def _mettre_a_jour_resume_historique(self):
+    def _mettre_a_jour_resume_historique(self, total_affiches):
         faits_semaine = compter_programmes_faits_semaine()
         a_faire = compter_programmes_a_faire()
         self.lbl_historique_stats.config(
-            text=f"  Programmes faits cette semaine : {faits_semaine}  •  Encore à faire : {a_faire}"
+            text=(
+                f"  Programmes affichés : {total_affiches}  •  Programmes faits cette semaine : {faits_semaine}"
+                f"  •  Encore à faire : {a_faire}"
+            )
         )
 
     def _marquer_comme_fait(self):

@@ -11,6 +11,8 @@ import random
 import csv
 import os
 from datetime import datetime
+import repas_nutrition as nutrition
+import seances_sport as sport
 
 # ==================== BASE DE DONNÉES ====================
 
@@ -125,104 +127,17 @@ def exporter_csv():
 
 # ==================== DONNÉES ====================
 
-SEANCES = {
-    "prise de masse": {
-        "debutant": [
-            {"duree": "45 min", "seance": "Échauffement 5 min + 3x10 pompes + 3x12 squats + 3x10 fentes + 3x15 abdominaux + retour au calme 5 min"},
-            {"duree": "45 min", "seance": "Échauffement 5 min + 3x10 dips sur chaise + 3x12 soulevé de terre léger + 3x10 rowing haltères + retour au calme 5 min"},
-            {"duree": "45 min", "seance": "Échauffement 5 min + 3x12 développé couché haltères légers + 3x10 curl biceps + 3x12 élévations latérales + retour au calme 5 min"},
-        ],
-        "intermediaire": [
-            {"duree": "1h", "seance": "Échauffement 10 min + 4x10 développé couché + 4x10 rowing barre + 4x12 squats haltères + 4x15 abdominaux + retour au calme 5 min"},
-            {"duree": "1h", "seance": "Échauffement 10 min + 4x8 soulevé de terre + 4x10 tractions assistées + 4x12 presse à cuisses + 4x15 crunchs + retour au calme 5 min"},
-            {"duree": "1h", "seance": "Échauffement 10 min + 4x10 squat bulgare + 4x10 développé militaire + 4x12 curl marteau + 4x10 triceps poulie + retour au calme 5 min"},
-        ],
-        "confirme": [
-            {"duree": "1h30", "seance": "Échauffement 10 min + 5x5 squat lourd + 5x5 développé couché lourd + 4x8 rowing barre + 4x10 tractions lestées + 4x12 curl + 4x12 triceps barre + gainage 3x1 min + retour au calme 10 min"},
-            {"duree": "1h30", "seance": "Échauffement 10 min + 5x5 soulevé de terre + 5x5 développé militaire + 4x8 squat bulgare + 4x10 dips lestés + 4x12 élévations latérales + abdos 4x20 + retour au calme 10 min"},
-            {"duree": "1h30", "seance": "Échauffement 10 min + Push/Pull/Legs : 4x8 développé incliné + 4x8 rowing unilatéral + 4x10 leg press + 4x12 curl incliné + 4x12 extensions triceps + mollets 4x20 + retour au calme 10 min"},
-        ],
-    },
-    "seche": {
-        "debutant": [
-            {"duree": "45 min", "seance": "Échauffement 5 min + circuit 3 tours : 15 squats / 10 pompes / 20 abdominaux / 15 fentes / 30 sec gainage + retour au calme 5 min"},
-            {"duree": "45 min", "seance": "Échauffement 5 min + 20 min marche rapide + circuit 2 tours : 15 squats sautés / 10 burpees / 20 mountain climbers + retour au calme 5 min"},
-            {"duree": "45 min", "seance": "Échauffement 5 min + tabata 4 rounds (20s effort / 10s repos) : jumping jacks / squats / pompes / abdominaux + retour au calme 10 min"},
-        ],
-        "intermediaire": [
-            {"duree": "1h", "seance": "Échauffement 10 min + HIIT 30 min (30s sprint / 30s repos x15) + circuit muscu 3 tours : 15 squats haltères / 12 pompes déclinées / 20 abdominaux + retour au calme 10 min"},
-            {"duree": "1h", "seance": "Échauffement 10 min + 4x15 fentes marchées + 4x20 squats sautés + 4x15 pompes + 4x20 mountain climbers + 20 min vélo intensité modérée + retour au calme 5 min"},
-            {"duree": "1h", "seance": "Échauffement 10 min + circuit 4 tours : burpees x12 / tractions x8 / dips x12 / gainage 45 sec / corde à sauter 1 min + retour au calme 10 min"},
-        ],
-        "confirme": [
-            {"duree": "1h30", "seance": "Échauffement 10 min + HIIT 20 min (sprint 20s / repos 10s x20) + muscu sèche 4x15 squat / 4x15 développé couché / 4x15 rowing + cardio 25 min elliptique intensité haute + retour au calme 10 min"},
-            {"duree": "1h30", "seance": "Échauffement 10 min + CrossFit : 5 rounds de 21 thrusters / 15 tractions / 9 burpees + 30 min course fractionnée (1 min rapide / 1 min lent) + retour au calme 10 min"},
-            {"duree": "1h30", "seance": "Échauffement 10 min + circuit full body 5 tours : deadlift x10 / box jump x12 / pompes archer x8 / kettlebell swing x15 / corde à sauter 1 min + cardio 20 min + retour au calme 10 min"},
-        ],
-    },
-    "maintien": {
-        "debutant": [
-            {"duree": "45 min", "seance": "Échauffement 5 min + 30 min marche rapide ou vélo léger + 3x10 squats + 3x10 pompes + 3x15 abdominaux + étirements 5 min"},
-            {"duree": "45 min", "seance": "Échauffement 5 min + yoga débutant 20 min + 3x12 fentes + 3x10 dips chaise + 3x15 crunchs + retour au calme 5 min"},
-            {"duree": "45 min", "seance": "Échauffement 5 min + 25 min natation douce + 2x15 squats + 2x10 pompes + gainage 3x30 sec + étirements 5 min"},
-        ],
-        "intermediaire": [
-            {"duree": "1h", "seance": "Échauffement 10 min + 30 min course légère + 3x12 squats haltères + 3x10 développé épaules + 3x15 abdominaux + étirements 10 min"},
-            {"duree": "1h", "seance": "Échauffement 10 min + circuit 3 tours équilibré : 12 squats / 10 tractions assistées / 15 abdos / 12 fentes / 10 pompes + 20 min cardio modéré + retour au calme 5 min"},
-            {"duree": "1h", "seance": "Échauffement 10 min + 35 min vélo intensité moyenne + 3x12 rowing + 3x12 développé couché + gainage 3x45 sec + étirements 5 min"},
-        ],
-        "confirme": [
-            {"duree": "1h30", "seance": "Échauffement 10 min + 40 min course à allure modérée + full body 4x10 : squat / développé couché / rowing barre / développé militaire / curl + gainage 4x1 min + retour au calme 10 min"},
-            {"duree": "1h30", "seance": "Échauffement 10 min + 30 min natation / vélo / elliptique + muscu entretien 4x10 : soulevé de terre / tractions / dips / fentes lestées + abdos 4x20 + étirements 10 min"},
-            {"duree": "1h30", "seance": "Échauffement 10 min + Pilates ou yoga avancé 30 min + muscu fonctionnelle 4x12 : kettlebell swing / turkish get-up / box jump / fentes rotatives + cardio 20 min + retour au calme 10 min"},
-        ],
-    },
-}
+SEANCES = sport.SEANCES
+REPAS = nutrition.REPAS
+CONSEILS = nutrition.CONSEILS_NUTRITION
 
-REPAS = {
-    "prise de masse": [
-        {"nom": "Riz complet + blanc de poulet + brocolis + fromage blanc", "calories": "650", "proteines": "55g"},
-        {"nom": "Pâtes complètes + thon + tomates + huile d'olive", "calories": "600", "proteines": "45g"},
-        {"nom": "Steak haché 5% + patate douce + épinards + yaourt protéiné", "calories": "700", "proteines": "60g"},
-        {"nom": "Omelette 4 œufs + avocat + pain complet + fromage blanc", "calories": "620", "proteines": "40g"},
-        {"nom": "Saumon + quinoa + haricots verts + huile d'olive", "calories": "680", "proteines": "50g"},
-    ],
-    "seche": [
-        {"nom": "Salade de poulet grillé + légumes verts + vinaigrette citron", "calories": "350", "proteines": "40g"},
-        {"nom": "Soupe de légumes maison + œuf dur + fruit frais", "calories": "280", "proteines": "20g"},
-        {"nom": "Saumon vapeur + haricots verts + quinoa (petite portion)", "calories": "380", "proteines": "35g"},
-        {"nom": "Blanc de poulet + courgettes sautées + riz basmati (80g)", "calories": "320", "proteines": "38g"},
-        {"nom": "Thon en boîte + salade verte + tomates + concombre + citron", "calories": "250", "proteines": "30g"},
-    ],
-    "maintien": [
-        {"nom": "Bowl : riz, avocat, légumes rôtis, œuf mollet", "calories": "500", "proteines": "25g"},
-        {"nom": "Wrap complet : jambon, crudités, houmous", "calories": "450", "proteines": "22g"},
-        {"nom": "Omelette aux légumes + pain complet + salade verte", "calories": "420", "proteines": "28g"},
-        {"nom": "Poulet rôti + légumes du four + pomme de terre", "calories": "480", "proteines": "35g"},
-        {"nom": "Soupe de lentilles + pain complet + yaourt nature", "calories": "430", "proteines": "24g"},
-    ],
-}
 
-CONSEILS = {
-    "prise de masse": [
-        "Mange toutes les 3h pour maintenir un apport protéiné constant.",
-        "Prends un shaker protéiné dans les 30 min après ta séance.",
-        "Privilégie les glucides complexes : riz, pâtes, patate douce.",
-        "Dors 8h minimum : c'est pendant le sommeil que le muscle se construit.",
-    ],
-    "seche": [
-        "Bois 2L d'eau par jour minimum pour éliminer les toxines.",
-        "Évite les sucres rapides et les aliments ultra-transformés.",
-        "Mange des légumes à volonté : peu caloriques et rassasiants.",
-        "Ne saute pas de repas : ça ralentit le métabolisme.",
-    ],
-    "maintien": [
-        "Mange équilibré : 1/2 légumes, 1/4 protéines, 1/4 glucides.",
-        "Bois au moins 1,5L d'eau par jour.",
-        "Fais 3 repas par jour à heures régulières.",
-        "Autorise-toi un repas plaisir par semaine, sans culpabiliser.",
-    ],
-}
+def calories_pour_app(repas: dict[str, str]) -> str:
+    return repas["calories"].replace("kcal", "").strip()
+
+
+def proteines_pour_app(repas: dict[str, str]) -> str:
+    return repas["proteines"].split(" de ")[0].strip()
 
 LABELS_OBJ = {"prise de masse": "Prise de masse", "seche": "Sèche", "maintien": "Maintien"}
 LABELS_NIV = {"debutant": "Débutant", "intermediaire": "Intermédiaire", "confirme": "Confirmé"}
@@ -426,13 +341,15 @@ class CoachApp(tk.Tk):
             return
 
         s = random.choice(SEANCES[objectif][niveau])
-        r = random.choice(REPAS[objectif])
-        c = random.choice(CONSEILS[objectif])
+        r = nutrition.choisir_repas(objectif)
+        c = nutrition.choisir_conseil_nutrition(objectif)
+        calories = calories_pour_app(r)
+        proteines = proteines_pour_app(r)
 
         sauvegarder_programme(
             LABELS_OBJ[objectif], LABELS_NIV[niveau],
             s["seance"], s["duree"],
-            r["nom"], r["calories"], r["proteines"], c
+            r["nom"], calories, proteines, c
         )
 
         for w in self.result_frame.winfo_children():
@@ -447,7 +364,7 @@ class CoachApp(tk.Tk):
                          wraplength=740, justify="left").pack(anchor="w", pady=1)
 
         bloc("🏋  SÉANCE DE SPORT", [f"Durée : {s['duree']}", s["seance"]], VERT)
-        bloc("🍽  REPAS CONSEILLÉ", [r["nom"], f"{r['calories']} kcal  •  {r['proteines']} protéines"], ORANGE)
+        bloc("🍽  REPAS CONSEILLÉ", [r["nom"], f"{calories} kcal  •  {proteines} protéines"], ORANGE)
         bloc("💡  CONSEIL NUTRITION", [c], BLEU)
 
         # Note

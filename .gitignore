@@ -1,0 +1,20 @@
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.env
+
+# Base de donnees locale (donnees utilisateur)
+coach_sport.db
+*.db-journal
+
+# Export
+historique_coach.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+.DS_Store
